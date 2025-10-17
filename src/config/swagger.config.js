@@ -32,10 +32,21 @@ const options = {
     openapi: '3.0.0',
     info: {
       title: 'StorageKit API',
-      version: '1.0.0',
-      description: 'API Gateway para S3-compatible storage (MinIO, AWS S3, DigitalOcean Spaces, etc.) com autenticação por API Key.',
+      version: '1.0.5',
+      description: `🚀 **StorageKit API** - Gateway para S3-compatible storage (MinIO, AWS S3, DigitalOcean Spaces, etc.) com autenticação por API Key.
+
+---
+
+### ☕ Apoie este projeto!
+
+Se esta API está sendo útil para você, considere apoiar com um café! ☕
+
+**PIX:** automacaodebaixocusto@gmail.com
+
+*Sua contribuição ajuda a manter este projeto ativo e em constante melhoria! 🙏*`,
       contact: {
-        name: 'StorageKit',
+        name: 'ABC-Automação',
+        email: 'automacaodebaixocusto@gmail.com'
       },
       license: {
         name: 'MIT',
