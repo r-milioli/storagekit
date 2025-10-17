@@ -1,0 +1,124 @@
+version: "3.7"
+
+services:
+  storagekit:
+    # Imagem da aplicação (você pode usar uma registry ou build local)
+    image: automacaodebaixocusto/storagekit:latest
+    
+    # Nome do container
+    container_name: storagekit
+    
+    # Define a rede que o container vai usar
+    networks:
+      - network_public
+    
+    # Variáveis de ambiente
+    environment:
+      # Configuração S3 (MinIO)
+      - S3_ENDPOINT=minio.exemplo.com
+      - S3_PORT=443
+      - S3_USE_SSL=true
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin123
+      - S3_REGION=us-east-1
+      
+      # Configuração da API
+      - PORT=3000
+      - NODE_ENV=production
+      - PRODUCTION_URL=https://storagekit.exemplo.com
+      
+      # API Key - ALTERE PARA UMA CHAVE SEGURA!
+      - API_KEY=sua-chave-super-secreta-aqui
+    
+    # Deploy configuration para Swarm
+    deploy:
+      mode: replicated
+      replicas: 1
+      
+      # Placement constraints
+      placement:
+        constraints:
+          - node.role == manager
+      
+      # Recursos
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+      
+      # Restart policy
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      
+      # Labels do Traefik
+      labels:
+        # Habilita o Traefik
+        - traefik.enable=true
+        
+        # Define o serviço Docker
+        - traefik.docker.network=network_public
+        
+        # Roteador HTTP (redireciona para HTTPS)
+        - traefik.http.routers.storagekit-http.rule=Host(`storagekit.exemplo.com`)
+        - traefik.http.routers.storagekit-http.entrypoints=web
+        - traefik.http.routers.storagekit-http.middlewares=redirect-to-https
+        
+        # Roteador HTTPS
+        - traefik.http.routers.storagekit.rule=Host(`storagekit.exemplo.com`)
+        - traefik.http.routers.storagekit.entrypoints=websecure
+        - traefik.http.routers.storagekit.tls=true
+        - traefik.http.routers.storagekit.tls.certresolver=letsencryptresolver
+        
+        # Serviço (porta da aplicação)
+        - traefik.http.services.storagekit.loadbalancer.server.port=3000
+        
+        # Middleware de redirect para HTTPS
+        - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+        - traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true
+
+networks:
+  network_public:
+    external: true
+    name: network_public
+
+# ========================================
+# EXEMPLO DE CONFIGURAÇÃO PARA AWS S3
+# ========================================
+# 
+# Para usar com AWS S3, substitua as variáveis:
+# 
+# environment:
+#   - S3_ENDPOINT=s3.amazonaws.com
+#   - S3_PORT=443
+#   - S3_USE_SSL=true
+#   - S3_REGION=us-east-1
+#   - S3_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE
+#   - S3_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+#
+# ========================================
+# EXEMPLO DE CONFIGURAÇÃO PARA DIGITALOCEAN SPACES
+# ========================================
+#
+# environment:
+#   - S3_ENDPOINT=nyc3.digitaloceanspaces.com
+#   - S3_PORT=443
+#   - S3_USE_SSL=true
+#   - S3_REGION=nyc3
+#   - S3_ACCESS_KEY=DO00EXAMPLEKEY
+#   - S3_SECRET_KEY=EXAMPLE_SECRET_KEY_DO_NOT_USE_IN_PRODUCTION
+#
+# ========================================
+# EXEMPLO DE CONFIGURAÇÃO PARA MINIO LOCAL
+# ========================================
+#
+# environment:
+#   - S3_ENDPOINT=localhost
+#   - S3_PORT=9000
+#   - S3_USE_SSL=false
+#   - S3_ACCESS_KEY=minioadmin
+#   - S3_SECRET_KEY=minioadmin
