@@ -3,6 +3,34 @@ const { Readable } = require('stream');
 
 class MinioService {
   /**
+   * Gera URLs para um arquivo
+   */
+  async generateFileUrls(bucketName, filePath) {
+    try {
+      // URL da API StorageKit (requer autenticação)
+      const apiUrl = process.env.PRODUCTION_URL || `https://storage.iacas.top`;
+      const storageKitUrl = `${apiUrl}/api/${bucketName}/download?path=${encodeURIComponent(filePath)}`;
+      
+      // URL temporária direta do MinIO (sem autenticação, expira em 1 hora)
+      const directUrl = await s3Client.presignedGetObject(bucketName, filePath, 3600);
+      
+      return {
+        url: storageKitUrl,
+        directUrl: directUrl,
+        urlExpiresIn: 3600 // 1 hora em segundos
+      };
+    } catch (error) {
+      // Se falhar ao gerar URL direta, retorna só a URL da API
+      const apiUrl = process.env.PRODUCTION_URL || `https://storage.iacas.top`;
+      return {
+        url: `${apiUrl}/api/${bucketName}/download?path=${encodeURIComponent(filePath)}`,
+        directUrl: null,
+        urlExpiresIn: null
+      };
+    }
+  }
+
+  /**
    * Verifica se um bucket existe, se não, cria
    */
   async ensureBucket(bucketName) {
@@ -63,10 +91,10 @@ class MinioService {
     try {
       const prefix = path && !path.endsWith('/') && path !== '' ? `${path}/` : path;
       const folders = [];
-      const files = [];
+      const filePromises = [];
       const stream = s3Client.listObjects(bucketName, prefix, false);
 
-      return new Promise((resolve, reject) => {
+      await new Promise((resolve, reject) => {
         stream.on('data', (obj) => {
           if (obj.prefix) {
             // É uma pasta
@@ -82,19 +110,28 @@ class MinioService {
             // É um arquivo
             const name = obj.name.replace(prefix, '');
             if (name) {
-              files.push({
-                name,
-                path: obj.name,
-                size: obj.size,
-                modified: obj.lastModified,
-                type: 'file'
-              });
+              // Adiciona promise para gerar URLs
+              filePromises.push(
+                this.generateFileUrls(bucketName, obj.name).then(urls => ({
+                  name,
+                  path: obj.name,
+                  size: obj.size,
+                  modified: obj.lastModified,
+                  type: 'file',
+                  ...urls
+                }))
+              );
             }
           }
         });
-        stream.on('end', () => resolve({ folders, files }));
+        stream.on('end', resolve);
         stream.on('error', reject);
       });
+
+      // Aguarda todas as URLs serem geradas
+      const files = await Promise.all(filePromises);
+
+      return { folders, files };
     } catch (error) {
       throw new Error(`Erro ao listar: ${error.message}`);
     }
@@ -112,10 +149,14 @@ class MinioService {
 
       await s3Client.putObject(bucketName, path, stream, fileBuffer.length, metaData);
 
+      // Gera URLs para o arquivo recém-criado
+      const urls = await this.generateFileUrls(bucketName, path);
+
       return {
         bucket: bucketName,
         path: path,
-        size: fileBuffer.length
+        size: fileBuffer.length,
+        ...urls
       };
     } catch (error) {
       throw new Error(`Erro ao fazer upload: ${error.message}`);
@@ -146,12 +187,15 @@ class MinioService {
   async info(bucketName, path) {
     try {
       const stat = await s3Client.statObject(bucketName, path);
+      const urls = await this.generateFileUrls(bucketName, path);
+      
       return {
         name: path.split('/').pop(),
         path: path,
         size: stat.size,
         modified: stat.lastModified,
-        contentType: stat.metaData['content-type']
+        contentType: stat.metaData['content-type'],
+        ...urls
       };
     } catch (error) {
       throw new Error(`Erro ao obter informações: ${error.message}`);

@@ -42,6 +42,11 @@ environment:
   - S3_ACCESS_KEY=seu_access_key
   - S3_SECRET_KEY=seu_secret_key
   
+  # API Configuration
+  - PORT=3000
+  - NODE_ENV=production
+  - PRODUCTION_URL=https://storage.iacas.top
+  
   # API Key - IMPORTANTE: Altere!
   - API_KEY=gere-uma-chave-segura-aqui
 ```

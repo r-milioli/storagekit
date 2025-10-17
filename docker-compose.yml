@@ -3,7 +3,7 @@ version: "3.7"
 services:
   storagekit:
     # Imagem da aplicação (você pode usar uma registry ou build local)
-    image: storagekit:latest
+    image: automacaodebaixocusto/storagekit:v1.0.0
     
     # Nome do container
     container_name: storagekit
@@ -24,6 +24,7 @@ services:
       # Configuração da API
       - PORT=3000
       - NODE_ENV=production
+      - PRODUCTION_URL=https://storage.iacas.top
       
       # API Key - ALTERE PARA UMA CHAVE SEGURA!
       - API_KEY=sua-chave-super-secreta-12345
